@@ -301,6 +301,9 @@ project.setProperty("downgradePackage", result);
             <case value="documents">
               <property name="typename" value="Document" />
             </case>
+            <case value="flows">
+              <property name="typename" value="Flow" />
+            </case>
             <case value="homePageComponents">
               <property name="typename" value="HomePageComponent" />
             </case>

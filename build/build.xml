@@ -58,6 +58,34 @@
     <property name="cumulusci.apexdoc.scope" value="global;public;private;testmethod;webService" />
     <property name="cumulusci.apexdoc.branch" value="gh-pages" />
 
+<!-- Added by me -->
+    <!-- Extra properties to aid with zipping files -->
+    <property name="changes.file" value='${temp.folder}/${sf.username}.change'/>
+    <property name="zip.file" value='${temp.folder}/${sf.username}.zip'/>
+    <property name="static.css" value="static/css"/>
+    <property name="static.js"  value="static/js" />
+    <property name="static.img" value="static/img"/>
+    <property name="resource.css" value="src/staticresources/css.resource"/>
+    <property name="resource.js"  value="src/staticresources/js.resource" />
+    <property name="resource.img" value="src/staticresources/img.resource"/>
+
+    <!-- Resources for getting profiles -->
+    <property name="package.xml.folder" value="packageXmls/"/>
+    <property name="profile.xml" value="profileFetch.xml"/>
+    <property name="deploy.profile.xml" value="profileDeploy.xml"/>
+    <property name="profile.folder" value="profileFetchDest"/>
+    <property name="deploy.profile.folder" value="profileDeploy"/>
+
+    <!-- Resource for getting the custom setting objects -->
+    <property name="custom.setting.xml" value="customSettingFetch.xml"/>
+    <property name="custom.setting.folder" value="customSettingFetchDest"/>
+
+    <!-- Resource zipping for SRM -->
+    <property name="static.ClientBadges" value="static/ClientBadges"/>
+    <property name="resource.ClientBadges" value="src/staticresources/ClientBadges.resource"/>
+
+<!-- End Of Additions By Me -->
+
     <!-- Allow TEST_JSON_OUTPUT environment variable to override cumulusci.test.jsonoutput -->
     <if>
       <isset property="env.TEST_JSON_OUTPUT" />
@@ -579,6 +607,115 @@
     </target>
 
     <!-- Developer focused build targets -->
+<!-- Added by me -->
+    <!-- deploy all and zip up the static resources -->
+    <target name="deployWithoutTestStatic" depends="deployWithoutTest,preDeployStatic">
+        <echo>Deploying with Static Resources to: ${sf.username} ${sf.serverurl}</echo>
+        <antcall target="preDeployStatic"/>
+        <antcall target="deployWithoutTest"/>
+        <antcall target="postDeployStatic"/>
+    </target>
+
+    <!-- Deploy only the meta data that has been changed since the last successful deplo -->
+    <target name="deployRecent" depends="zip-resources,zip-all-files,zip-changed-files">
+        <!-- Upload the contents of the "codepkg" directory -->
+        <sf:deploy username="${sf.username}" password="${sf.password}${sf.token}" serverurl="${sf.serverurl}" zipFile="${zip.file}.tmp" allowMissingFiles="true"/>
+        <move file="${zip.file}.tmp" tofile="${zip.file}"/>
+    </target>
+
+    <!-- zip helpers -->
+    <available property="zip.exists" file="${zip.file}"/>
+    <target name="zip-all-files" unless="${zip.exists}">
+        <zip destfile='${zip.file}.tmp'>
+            <fileset dir="src" excludes="staticresources/*"/>
+        </zip>
+    </target>
+
+    <target name="zip-changed-files" if="${zip.exists}">
+        <!-- if windows, get correct path to 'find' command -->
+        <condition property="cmd.find" value="${git.path}${git.find.win}" else="find">
+            <os family="windows"/>
+        </condition>
+
+        <!-- Generate list of files that changed -->
+        <delete file="${changes.file}" />
+        <exec dir="src" executable="${cmd.find}" output="${changes.file}" failonerror="true">
+            <arg line="."/>
+            <arg line="-newer"/>
+            <arg line="../${zip.file}"/>
+        </exec>
+
+        <!-- If no changes were found since last deploy, fail (no need to waste time uploading an empty package) -->
+        <fail message="No changes found since last deploy">
+            <condition>
+                <length file="${changes.file}" length="0"/>
+            </condition>
+        </fail>
+
+        <!-- Add package.xml, fix file paths and add metadata files to the list -->
+        <echo file="${changes.file}" message="./package.xml" append="true"/>
+        <replaceregexp file="${changes.file}" match="-meta.xml" replace="" flags="g" byline="true"/>
+        <replaceregexp file="${changes.file}" match="^\.\/?" replace="" flags="g" byline="true" />
+        <replaceregexp file="${changes.file}" match="(.*\.(cls|component|page|resource|trigger)$)" replace="\1${line.separator}\1-meta.xml" flags="g"  byline="true"/>
+
+        <!-- Zip changed files -->
+        <zip destfile='${zip.file}.tmp' basedir="src" includesfile='${changes.file}'/>
+    </target>
+
+    <target name="zip-resources">
+        <zip destfile="${resource.js}"  basedir="${static.js}"  whenempty="create"/>
+        <zip destfile="${resource.css}" basedir="${static.css}" whenempty="create"/>
+        <zip destfile="${resource.img}" basedir="${static.img}" whenempty="create"/>
+    </target>
+
+    <!-- Shows retrieving code; only succeeds if done after deployCode -->
+    <target name="retrieveUnPkg">
+
+        <!-- Retrieve the contents listed in the file codepkg/package.xml into the codepkg directory -->
+        <echo message="username=${sf.username} password=${sf.password} serverurl=${sf.serverurl}"/>
+        <sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="src" unpackaged="src/package.xml"/>
+    </target>
+
+    <!-- Get the profiles from a given org -->
+    <target name="retrieveProfiles">
+
+        <delete dir="${profile.folder}" />
+        <mkdir dir="${profile.folder}"/>
+        <sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="${profile.folder}" unpackaged="${package.xml.folder}${profile.xml}"/>
+    </target>
+
+    <!-- Deploy only profiles to a target org. -->
+    <target name="deployProfilesOnly">
+        <delete dir="${deploy.profile.folder}" />
+        <mkdir dir="${deploy.profile.folder}"/>
+        <mkdir dir="${deploy.profile.folder}/profiles"/>
+        <exec dir="${basedir}" executable="cp">
+            <arg line="-r"/>
+            <arg line="src/profiles/"/>
+            <arg line="${deploy.profile.folder}/profiles"/>
+        </exec>
+        <exec dir="${basedir}" executable="cp">
+            <arg line="${package.xml.folder}${deploy.profile.xml}"/>
+            <arg line="${deploy.profile.folder}"/>
+        </exec>
+        <exec dir="${deploy.profile.folder}" executable="mv">
+            <arg line="${deploy.profile.xml}"/>
+            <arg line="package.xml"/>
+        </exec>
+        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${deploy.profile.folder}" allowMissingFiles="true"/>
+    </target>
+
+
+    <!-- Get the definitions of all the custom settings on the org -->
+    <target name="retrieveCustomSettings">
+        <delete dir="${custom.setting.folder}" />
+        <mkdir dir="${custom.setting.folder}"/>
+        <echo message="${package.xml.folder}${custom.setting.xml}"/>
+        <sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="${custom.setting.folder}" unpackaged="${package.xml.folder}${custom.setting.xml}"/>
+    </target>
+<!-- End of additions -->
+
+
 
     <!-- retrieveUnpackaged: Retrieves all unpackaged metadata from target org into the unpackaged directory -->
     <target name="retrieveUnpackaged">
@@ -856,4 +993,15 @@
         <echo>Nothing to do for postDeployManagedBeta</echo>
     </target>
 
+    <!-- Before deploy of src directory with static -->
+    <target name="preDeployStatic">
+        <echo>Zipping Static Resources</echo>
+        <zip destfile="${resource.ClientBadges}"  basedir="${static.ClientBadges}"  whenempty="create"/>
+    </target>
+
+    <!-- Before deploy of src directory with static -->
+    <target name="postDeployStatic">
+        <echo>Removing static resource file</echo>
+        <delete dir="${resource.ClientBadges}" />
+    </target>
 </project>
