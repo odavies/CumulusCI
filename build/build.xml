@@ -82,8 +82,11 @@
     <property name="custom.setting.folder" value="customSettingFetchDest"/>
 
     <!-- Resource zipping for SRM -->
-    <property name="static.ClientBadges" value="static/ClientBadges"/>
-    <property name="resource.ClientBadges" value="src/staticresources/ClientBadges.resource"/>
+    <property name="resource.folder" value="src/staticresources/"/>
+    <property name="resource.client.badges" value="ClientBadges.resource"/>
+    <property name="client.badges.meta.xml.name" value="ClientBadges.resource-meta.xml"/>
+    <property name="static.folder" value="static/"/>
+    <property name="static.client.badges" value="ClientBadges"/>
 
 <!-- End Of Additions By Me -->
 
@@ -151,7 +154,7 @@
         <echo>----------------------------------------------------------------------------</echo>
         <echo>Deploying with outtests to: ${sf.username} ${sf.serverurl}</echo>
         <antcall target="preDeploy" />
-        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="src" runAllTests="false" maxPoll="${cumulusci.maxPoll.notest}" />
+        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="src" runAllTests="false" maxPoll="${cumulusci.maxPoll.notest}" allowMissingFiles="true"/>
         <antcall target="postDeploy" />
     </target>
 
@@ -610,6 +613,12 @@
 
     <!-- Developer focused build targets -->
 <!-- Added by me -->
+    <target name="deployCodeDrop">
+        <echo>----------------------------------------------------------------------------</echo>
+        <echo>Deploying with outtests to: ${sf.username} ${sf.serverurl}</echo>
+        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="codeDrop/src" runAllTests="false" maxPoll="${cumulusci.maxPoll.notest}" allowMissingFiles="true"/>
+    </target>
+
     <!-- deploy all and zip up the static resources -->
     <target name="deployWithoutTestStatic">
         <echo>Deploying with Static Resources to: ${sf.username} ${sf.serverurl}</echo>
@@ -621,7 +630,7 @@
     <!-- Deploy only the meta data that has been changed since the last successful deplo -->
     <target name="deployRecent" depends="zip-resources,zip-all-files,zip-changed-files">
         <!-- Upload the contents of the "codepkg" directory -->
-        <sf:deploy username="${sf.username}" password="${sf.password}${sf.token}" serverurl="${sf.serverurl}" zipFile="${zip.file}.tmp" allowMissingFiles="true"/>
+        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${zip.file}.tmp" allowMissingFiles="true"/>
         <move file="${zip.file}.tmp" tofile="${zip.file}"/>
     </target>
 
@@ -665,9 +674,9 @@
     </target>
 
     <target name="zip-resources">
-        <zip destfile="${resource.js}"  basedir="${static.js}"  whenempty="create"/>
+        <!--<zip destfile="${resource.js}"  basedir="${static.js}"  whenempty="create"/>
         <zip destfile="${resource.css}" basedir="${static.css}" whenempty="create"/>
-        <zip destfile="${resource.img}" basedir="${static.img}" whenempty="create"/>
+        <zip destfile="${resource.img}" basedir="${static.img}" whenempty="create"/>-->
     </target>
 
     <!-- Shows retrieving code; only succeeds if done after deployCode -->
@@ -993,12 +1002,17 @@
     <!-- Before deploy of src directory with static -->
     <target name="preDeployStatic">
         <echo>Zipping Client Badges</echo>
-        <zip destfile="${resource.ClientBadges}"  basedir="${static.ClientBadges}"  whenempty="create"/>
+        <exec dir="${basedir}" executable="cp">
+            <arg line="${static.folder}${client.badges.meta.xml.name}"/>
+            <arg line="${resource.folder}"/>
+        </exec>
+        <zip destfile="${resource.folder}${resource.client.badges}" basedir="${static.folder}${static.client.badges}" whenempty="create"/>
     </target>
 
     <!-- Before deploy of src directory with static -->
     <target name="postDeployStatic">
         <echo>Removing Client Badges static resource</echo>
-        <delete file="${resource.ClientBadges}" />
+        <delete file="${resource.folder}${resource.client.badges}"/>
+        <delete file="${resource.folder}${client.badges.meta.xml.name}"/>
     </target>
 </project>
