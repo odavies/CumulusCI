@@ -154,7 +154,7 @@
         <echo>----------------------------------------------------------------------------</echo>
         <echo>Deploying with outtests to: ${sf.username} ${sf.serverurl}</echo>
         <antcall target="preDeploy" />
-        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="src" runAllTests="false" maxPoll="${cumulusci.maxPoll.notest}" allowMissingFiles="true"/>
+        <sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="src" runAllTests="false" maxPoll="${cumulusci.maxPoll.notest}" allowMissingFiles="false"/>
         <antcall target="postDeploy" />
     </target>
 
@@ -689,6 +689,7 @@
 
     <!-- Get the profiles from a given org -->
     <target name="retrieveProfiles">
+        <echo>Retrieving Profiles from: ${sf.username} ${sf.serverurl}</echo>
         <delete dir="${profile.folder}" />
         <mkdir dir="${profile.folder}"/>
         <sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="${profile.folder}" unpackaged="${package.xml.folder}${profile.xml}"/>
