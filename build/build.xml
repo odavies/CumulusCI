@@ -89,7 +89,7 @@
     <property name="static.client.badges" value="ClientBadges"/>
 
     <property name="exclusion.script.location" value="HelperScripts/RemoveTypesFromPackage.py"/>
-    <property name="exclusion.file.flow.and.statics" value="packageXmls/exclusionSetForNoFlowsAndStatics"/>
+    <property name="exclusion.file.flow.and.statics" value="packageXmls/exclusionSet"/>
     <property name="exclusion.backup.package.xml.location" value="src/package.xml_exclusion_backup"/>
     <property name="exclusion.package.xml.location" value="src/exclusion_package.xml"/>
 
